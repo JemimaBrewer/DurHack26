@@ -33,7 +33,7 @@ class HandTracker:
         # smoothing of fingertip position (reduce jitter)
         self.filtered_x = None
         self.filtered_y = None
-        self.smoothing_alpha = 0.3
+        self.smoothing_alpha = 0.8
 
     def catmull_rom_spline(
         self,
