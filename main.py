@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
+    QStackedWidget
 )
 
 from PyQt6.QtCore import Qt, QTimer
@@ -18,6 +19,7 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 
 from audio_player import AudioPlayer
 
+from title_screen import TitleScreen
 
 class MaestroWindow(QWidget):
     def __init__(self):
@@ -139,7 +141,8 @@ class MaestroWindow(QWidget):
         # ======================
         # Camera Setup
         # ======================
-
+        
+    def start_session(self):
         self.cap = cv2.VideoCapture(
             0,
             cv2.CAP_DSHOW
@@ -270,11 +273,46 @@ class MaestroWindow(QWidget):
         self.cap.release()
         event.accept()
 
+class AppController(QStackedWidget):
+
+    def __init__(self):
+
+        super().__init__()
+
+        self.title_screen = TitleScreen()
+
+        self.maestro_screen = MaestroWindow()
+
+        self.addWidget(
+            self.title_screen
+        )
+
+        self.addWidget(
+            self.maestro_screen
+        )
+
+        self.setCurrentWidget(
+            self.title_screen
+        )
+
+        self.title_screen.start_button.clicked.connect(
+            self.show_maestro
+        )
+
+    def show_maestro(self):
+
+        self.maestro_screen.start_session()
+
+        self.setCurrentWidget(
+            self.maestro_screen
+        )
 
 if __name__ == "__main__":
+
     app = QApplication(sys.argv)
 
-    window = MaestroWindow()
-    window.show()
+    window = AppController()
+
+    window.showMaximized()
 
     sys.exit(app.exec())

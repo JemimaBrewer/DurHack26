@@ -18,6 +18,7 @@ class Analyser:
 
         self.deadzone = 4
         self.cooldown = 0.12
+        self.reversal_velocity = 40
 
     def update(self, x, y):
 
@@ -38,9 +39,8 @@ class Analyser:
         ) / dt
 
         ictus_detected = (
-            self.previous_velocity > 0
-            and velocity < 0
-            and abs(y - self.previous_y) > self.deadzone
+            self.previous_velocity > self.reversal_velocity
+            and velocity < -self.reversal_velocity
         )
 
         if ictus_detected:
@@ -82,7 +82,7 @@ class Analyser:
                         # by a single bad detection.
                         if self.bars_per_minute > 0:
 
-                            max_change = 10
+                            max_change = 30
 
                             raw_bpm = max(
                                 self.bars_per_minute
