@@ -7,6 +7,7 @@ from mediapipe.tasks import python
 
 
 class HandTracker:
+
     def __init__(self, model_path="hand_landmarker.task"):
 
         base_options = python.BaseOptions(
@@ -24,15 +25,16 @@ class HandTracker:
 
         self.trail = []
 
-        # shorter trail = faster fade
-        self.max_trail_length = 12
+        self.max_trail_length = 15
 
-        # smoothing
-        self.smoothed_x = None
-        self.smoothed_y = None
-        self.alpha = 0.15
+        self.frames_without_hand = 0
+        self.fade_delay = 10
 
-    def catmull_rom_spline(self, points, samples_per_segment=15):
+    def catmull_rom_spline(
+        self,
+        points,
+        samples_per_segment=12
+    ):
 
         if len(points) < 4:
             return points
@@ -48,7 +50,12 @@ class HandTracker:
             p2 = np.array(pts[i + 1], dtype=float)
             p3 = np.array(pts[i + 2], dtype=float)
 
-            for t in np.linspace(0, 1, samples_per_segment):
+            for t in np.linspace(
+                0,
+                1,
+                samples_per_segment,
+                endpoint=False
+            ):
 
                 t2 = t * t
                 t3 = t2 * t
@@ -61,7 +68,10 @@ class HandTracker:
                 )
 
                 result.append(
-                    (int(point[0]), int(point[1]))
+                    (
+                        int(point[0]),
+                        int(point[1])
+                    )
                 )
 
         return result
@@ -80,11 +90,14 @@ class HandTracker:
 
         result = self.detector.detect(mp_image)
 
+        fingertip_position = None
+
         if result.hand_landmarks:
+
+            self.frames_without_hand = 0
 
             hand = result.hand_landmarks[0]
 
-            # index fingertip
             fingertip = hand[8]
 
             height, width, _ = frame.shape
@@ -92,80 +105,73 @@ class HandTracker:
             x = int(fingertip.x * width)
             y = int(fingertip.y * height)
 
-            # exponential smoothing
-            if self.smoothed_x is None:
+            fingertip_position = (x, y)
 
-                self.smoothed_x = x
-                self.smoothed_y = y
-
-            else:
-
-                self.smoothed_x = (
-                    self.alpha * x +
-                    (1 - self.alpha) * self.smoothed_x
-                )
-
-                self.smoothed_y = (
-                    self.alpha * y +
-                    (1 - self.alpha) * self.smoothed_y
-                )
-
-            smooth_point = (
-                int(self.smoothed_x),
-                int(self.smoothed_y)
-            )
-
-            self.trail.append((x,y))
+            self.trail.append(fingertip_position)
 
             if len(self.trail) > self.max_trail_length:
                 self.trail.pop(0)
 
-            overlay = frame.copy()
+        else:
 
-            if len(self.trail) >= 4:
+            self.frames_without_hand += 1
 
-                curve = self.catmull_rom_spline(
-                    self.trail,
-                    samples_per_segment=12
+            if (
+                self.frames_without_hand > self.fade_delay
+                and len(self.trail) > 0
+            ):
+                self.trail.pop(0)
+
+        overlay = frame.copy()
+
+        if len(self.trail) >= 4:
+
+            curve = self.catmull_rom_spline(
+                self.trail,
+                samples_per_segment=12
+            )
+
+            total = len(curve)
+
+            for i in range(1, total):
+
+                progress = i / total
+
+                brightness = int(
+                    255 * progress
                 )
 
-                total = len(curve)
+                thickness = max(
+                    1,
+                    int(6 * progress)
+                )
 
-                for i in range(1, total):
+                cv2.line(
+                    overlay,
+                    curve[i - 1],
+                    curve[i],
+                    (
+                        brightness,
+                        brightness,
+                        brightness
+                    ),
+                    thickness,
+                    cv2.LINE_AA
+                )
 
-                    progress = i / total
+        frame = cv2.addWeighted(
+            overlay,
+            0.9,
+            frame,
+            0.1,
+            0
+        )
 
-                    brightness = int(255 * progress)
-
-                    thickness = max(
-                        1,
-                        int(7 * progress)
-                    )
-
-                    cv2.line(
-                        overlay,
-                        curve[i - 1],
-                        curve[i],
-                        (
-                            brightness,
-                            brightness,
-                            brightness
-                        ),
-                        thickness,
-                        cv2.LINE_AA
-                    )
-
-            frame = cv2.addWeighted(
-                overlay,
-                0.9,
-                frame,
-                0.1,
-                0
-            )
+        if fingertip_position is not None:
 
             cv2.circle(
                 frame,
-                (x, y),
+                fingertip_position,
                 8,
                 (255, 255, 255),
                 -1,
