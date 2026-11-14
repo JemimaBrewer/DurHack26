@@ -180,14 +180,37 @@ class MaestroWindow(QWidget):
         bpm = self.analyser.get_bars_per_minute()
         
         if self.hand_tracker.current_fingertip:
-            x, y = self.hand_tracker.current_fingertip
 
-            self.analyser.update(x, y)
+            x, y = (
+                self.hand_tracker.current_fingertip
+            )
 
-            bpm = self.analyser.get_bars_per_minute()
+            new_downbeat = (
+                self.analyser.update(x, y)
+            )
 
-            if bpm > 0:
-                self.audio_player.update_tempo(bpm)
+            if new_downbeat:
+
+                bpm = (
+                    self.analyser.get_bars_per_minute()
+                )
+
+                if bpm > 0:
+
+                    self.audio_player.update_tempo(
+                        bpm
+                    )
+
+            bpm = (
+                self.analyser.get_bars_per_minute()
+            )
+
+            self.text_box.setText(
+                f"Bars per Minute: {bpm:.1f}\n"
+                f"Playback Rate: "
+                f"{self.audio_player.get_rate():.2f}x"
+            )
+
 
 
             self.text_box.setText(
