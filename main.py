@@ -18,7 +18,9 @@ from PyQt6.QtCore import (
 
 from PyQt6.QtGui import (
     QPixmap,
-    QImage
+    QImage,
+    QPainter,
+    QPainterPath
 )
 
 
@@ -165,11 +167,34 @@ class MaestroWindow(QWidget):
         scaled_pixmap = pixmap.scaled(
             self.camera_label.width(),
             self.camera_label.height(),
-            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
             Qt.TransformationMode.SmoothTransformation
         )
 
-        self.camera_label.setPixmap(scaled_pixmap)
+        rounded = QPixmap(
+            self.camera_label.width(),
+            self.camera_label.height()
+        )
+        rounded.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        path = QPainterPath()
+        path.addRoundedRect(
+            0,
+            0,
+            self.camera_label.width(),
+            self.camera_label.height(),
+            24,
+            24
+        )
+
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, scaled_pixmap)
+        painter.end()
+
+        self.camera_label.setPixmap(rounded)
 
     def closeEvent(self, event):
         self.cap.release()
