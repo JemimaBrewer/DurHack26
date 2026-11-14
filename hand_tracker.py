@@ -29,6 +29,7 @@ class HandTracker:
 
         self.frames_without_hand = 0
         self.fade_delay = 10
+        self.current_fingertip=None
 
     def catmull_rom_spline(
         self,
@@ -104,6 +105,8 @@ class HandTracker:
 
             x = int(fingertip.x * width)
             y = int(fingertip.y * height)
+
+            self.current_fingertip=(x,y)
 
             fingertip_position = (x, y)
 
