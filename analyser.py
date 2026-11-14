@@ -1,14 +1,12 @@
 import time
 from collections import deque
 
+
 class Analyser:
-
     def __init__(self):
-
         self.previous_y = None
 
         self.descending = False
-
         self.stroke_start_y = None
         self.stroke_lowest_y = None
 
@@ -16,50 +14,45 @@ class Analyser:
 
         self.bars_per_minute = 0.0
 
-        # store the last 4 intervals, average to make run smoother
-        self.intervals = deque(maxlen=4)
-        
-        # cooldown reduced to 0.25 to allow for 240BPM max
-        self.cooldown = 0.25
-        # consider adding dynamic cooldown based on recent movements
-        
+        # Faster response
+        self.intervals = deque(maxlen=2)
 
-        # Minimum size of a conducting stroke
-        self.min_stroke_size = 120
-        
-        #ignore tiny fluctuations in y position
+        # Initial cooldown
+        self.cooldown = 0.25
+
+        # Smaller gestures accepted
+        self.min_stroke_size = 80
+
+        # Ignore tiny fluctuations
         self.deadzone = 6
 
     def update(self, x, y):
-
         current_time = time.time()
 
         if self.previous_y is None:
             self.previous_y = y
             return False
+
         delta = y - self.previous_y
-        
+
         if abs(delta) <= self.deadzone:
             self.previous_y = y
             return False
-        # Hand moving down
+
+        # Moving down
         if delta > 0:
             if not self.descending:
-
                 self.descending = True
                 self.stroke_start_y = self.previous_y
                 self.stroke_lowest_y = y
-
             else:
-
                 self.stroke_lowest_y = max(
                     self.stroke_lowest_y,
                     y
                 )
 
-        # Hand now moving upwards
-        elif delta < 0:
-
+        # Moving up
+        else:
             if self.descending:
 
                 stroke_size = (
@@ -82,9 +75,9 @@ class Analyser:
 
                 if (
                     sufficiently_large
-                    and cooldown_finished
+                    and
+                    cooldown_finished
                 ):
-
                     if self.last_downbeat_time is not None:
 
                         interval = (
@@ -94,23 +87,30 @@ class Analyser:
 
                         if interval > 0.2:
 
-                            self.intervals.append(interval)
-                            
-                            if len(self.intervals) >= 4:
-                                average_interval = (
-                                    sum(self.intervals)
-                                    / len(self.intervals)
-                                )
+                            self.intervals.append(
+                                interval
+                            )
 
-                                self.bars_per_minute = (
-                                    60.0 / average_interval
-                                )
+                            average_interval = (
+                                sum(self.intervals)
+                                / len(self.intervals)
+                            )
 
-                    self.last_downbeat_time = (
-                        current_time
-                    )
+                            self.bars_per_minute = (
+                                60.0
+                                / average_interval
+                            )
+
+                            # Dynamic cooldown
+                            self.cooldown = max(
+                                0.12,
+                                average_interval * 0.3
+                            )
+
+                    self.last_downbeat_time = current_time
 
                 self.descending = False
+
                 self.previous_y = y
                 return True
 
@@ -118,7 +118,6 @@ class Analyser:
         return False
 
     def get_bars_per_minute(self):
-
         return round(
             self.bars_per_minute,
             1
