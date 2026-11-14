@@ -50,20 +50,35 @@ class AudioPlayer:
             / self.reference_bpm
         )
 
-        # Wider range
         target_rate = max(
-            0.4,
-            min(3.0, target_rate)
+            0.5,
+            min(2.5, target_rate)
         )
 
-        # Gentle adjustment
-        self.current_rate += (
+        max_change = 0.10
+
+        rate_difference = (
             target_rate
             - self.current_rate
-        ) * 0.35
+        )
+
+        if rate_difference > max_change:
+            rate_difference = max_change
+
+        elif rate_difference < -max_change:
+            rate_difference = -max_change
+
+        self.current_rate += (
+            rate_difference
+        )
 
         self.player.set_rate(
             self.current_rate
+        )
+
+        print(
+            f"Target={target_rate:.2f} "
+            f"Current={self.current_rate:.2f}"
         )
 
     def get_rate(self):

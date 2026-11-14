@@ -16,16 +16,16 @@ class Analyser:
 
         self.bars_per_minute = 0.0
 
-        # Average last few conducting beats
+        # Average over several beats
         self.intervals = deque(maxlen=4)
 
-        # Prevent repeated detections
-        self.cooldown = 0.30
+        # Prevent duplicate detections
+        self.cooldown = 0.3
 
-        # Minimum conducting stroke size
+        # Minimum conducting gesture size
         self.min_stroke_size = 120
 
-        # Ignore tiny movement noise
+        # Ignore tiny hand jitter
         self.deadzone = 5
 
     def update(self, x, y):
@@ -48,11 +48,7 @@ class Analyser:
             if not self.descending:
 
                 self.descending = True
-
-                self.stroke_start_y = (
-                    self.previous_y
-                )
-
+                self.stroke_start_y = self.previous_y
                 self.stroke_lowest_y = y
 
             else:
@@ -62,8 +58,8 @@ class Analyser:
                     y
                 )
 
-        # Hand moving back up
-        else:
+        # Hand reversing upwards
+        elif delta < 0:
 
             if self.descending:
 
@@ -73,8 +69,8 @@ class Analyser:
                 )
 
                 sufficiently_large = (
-                    stroke_size
-                    > self.min_stroke_size
+                    stroke_size >
+                    self.min_stroke_size
                 )
 
                 cooldown_finished = (
@@ -90,10 +86,7 @@ class Analyser:
                     and cooldown_finished
                 ):
 
-                    if (
-                        self.last_downbeat_time
-                        is not None
-                    ):
+                    if self.last_downbeat_time is not None:
 
                         interval = (
                             current_time
@@ -114,6 +107,11 @@ class Analyser:
                             self.bars_per_minute = (
                                 60.0
                                 / average_interval
+                            )
+
+                            print(
+                                f"Interval={interval:.2f}s "
+                                f"BPM={self.bars_per_minute:.1f}"
                             )
 
                     self.last_downbeat_time = (
