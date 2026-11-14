@@ -16,6 +16,8 @@ from PyQt6.QtCore import Qt, QTimer
 
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 
+from audio_player import AudioPlayer
+
 
 class MaestroWindow(QWidget):
     def __init__(self):
@@ -160,6 +162,13 @@ class MaestroWindow(QWidget):
 
         self.analyser=Analyser()
 
+        self.audio_player = AudioPlayer(
+            audio_file="demo.mp3",
+            reference_bars_per_minute=37.5
+        )
+
+        self.audio_player.play()
+
     def update_frame(self):
         ret, frame = self.cap.read()
 
@@ -177,8 +186,14 @@ class MaestroWindow(QWidget):
 
             bpm = self.analyser.get_bars_per_minute()
 
+            if bpm > 0:
+                self.audio_player.update_tempo(bpm)
+
+
             self.text_box.setText(
-                f"Bars per Minute: {bpm:.1f}"
+                f"Bars per Minute: {bpm:.1f}\n"
+                f"Playback Rate: "
+                f"{self.audio_player.get_rate():.2f}x"
             )
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
