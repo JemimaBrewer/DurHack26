@@ -177,17 +177,20 @@ class MaestroWindow(QWidget):
 
         # Convert OpenCV BGR -> RGB
         frame = self.hand_tracker.process_frame(frame)
-
+        bpm = self.analyser.get_bars_per_minute()
+        
         if self.hand_tracker.current_fingertip:
 
             x, y = self.hand_tracker.current_fingertip
 
-            self.analyser.update(x, y)
+            new_downbeat = self.analyser.update(x, y)
 
-            bpm = self.analyser.get_bars_per_minute()
+            if new_downbeat:
 
-            if bpm > 0:
-                self.audio_player.update_tempo(bpm)
+                bpm = self.analyser.get_bars_per_minute()
+
+                if bpm > 0:
+                    self.audio_player.update_tempo(bpm)
 
 
             self.text_box.setText(

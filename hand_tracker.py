@@ -30,6 +30,10 @@ class HandTracker:
         self.frames_without_hand = 0
         self.fade_delay = 8
         self.current_fingertip=None
+        # smoothing of fingertip position (reduce jitter)
+        self.filtered_x = None
+        self.filtered_y = None
+        self.smoothing_alpha = 0.3
 
     def catmull_rom_spline(
         self,
@@ -102,16 +106,36 @@ class HandTracker:
             fingertip = hand[8]
 
             height, width, _ = frame.shape
+###
+            raw_x = int(fingertip.x * width)
+            raw_y = int(fingertip.y * height)
 
-            x = int(fingertip.x * width)
-            y = int(fingertip.y * height)
+            # Initialize filter
+            if self.filtered_x is None:
+                self.filtered_x = raw_x
+                self.filtered_y = raw_y
+            else:
+                alpha = self.smoothing_alpha
 
-            self.current_fingertip=(x,y)
+                self.filtered_x = (
+                    alpha * raw_x
+                    + (1.0 - alpha) * self.filtered_x
+                )
+
+                self.filtered_y = (
+                    alpha * raw_y
+                    + (1.0 - alpha) * self.filtered_y
+                )
+
+            x = int(self.filtered_x)
+            y = int(self.filtered_y)
+
+            self.current_fingertip = (x, y)
 
             fingertip_position = (x, y)
 
             self.trail.append(fingertip_position)
-
+###
             if len(self.trail) > self.max_trail_length:
                 self.trail.pop(0)
 
@@ -120,10 +144,11 @@ class HandTracker:
             self.frames_without_hand += 1
 
             if (
-                self.frames_without_hand > self.fade_delay
-                and len(self.trail) > 0
-            ):
-                self.trail.pop(0)
+                self.frames_without_hand > self.fade_delay):
+                self.filtered_x = None
+                self.filtered_y = None
+                if len(self.trail) > 0:
+                    self.trail.pop(0)
 
         overlay = frame.copy()
 
