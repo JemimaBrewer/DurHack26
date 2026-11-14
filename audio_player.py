@@ -19,11 +19,15 @@ class AudioPlayer:
             self.instance.media_player_new()
         )
 
-        media = self.instance.media_new(
-            audio_file
+        media = (
+            self.instance.media_new(
+                audio_file
+            )
         )
 
-        self.player.set_media(media)
+        self.player.set_media(
+            media
+        )
 
         self.current_rate = 1.0
 
@@ -41,14 +45,22 @@ class AudioPlayer:
         if live_bpm <= 0:
             return
 
-        self.current_rate = max(
-            0.5,
-            min(
-                2.0,
-                live_bpm
-                / self.reference_bpm
-            )
+        target_rate = (
+            live_bpm
+            / self.reference_bpm
         )
+
+        # Wider range
+        target_rate = max(
+            0.4,
+            min(3.0, target_rate)
+        )
+
+        # Gentle adjustment
+        self.current_rate += (
+            target_rate
+            - self.current_rate
+        ) * 0.35
 
         self.player.set_rate(
             self.current_rate

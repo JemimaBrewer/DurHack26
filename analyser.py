@@ -6,18 +6,27 @@ class Analyser:
 
     def __init__(self):
         self.previous_y = None
-        self.previous_time = None
 
-        self.previous_velocity = 0.0
+        self.descending = False
 
-        self.last_ictus_time = None
+        self.stroke_start_y = None
+        self.stroke_lowest_y = None
+
+        self.last_downbeat_time = None
 
         self.bars_per_minute = 0.0
 
-        self.intervals = deque(maxlen=2)
+        # Average last few conducting beats
+        self.intervals = deque(maxlen=4)
 
-        self.deadzone = 4
-        self.cooldown = 0.12
+        # Prevent repeated detections
+        self.cooldown = 0.30
+
+        # Minimum conducting stroke size
+        self.min_stroke_size = 120
+
+        # Ignore tiny movement noise
+        self.deadzone = 5
 
     def update(self, x, y):
 
@@ -25,84 +34,102 @@ class Analyser:
 
         if self.previous_y is None:
             self.previous_y = y
-            self.previous_time = current_time
             return False
 
-        dt = current_time - self.previous_time
+        delta = y - self.previous_y
 
-        if dt <= 0:
+        if abs(delta) < self.deadzone:
+            self.previous_y = y
             return False
 
-        velocity = (
-            y - self.previous_y
-        ) / dt
+        # Hand moving down
+        if delta > 0:
 
-        ictus_detected = (
-            self.previous_velocity > 0
-            and velocity < 0
-            and abs(y - self.previous_y) > self.deadzone
-        )
+            if not self.descending:
 
-        if ictus_detected:
+                self.descending = True
 
-            cooldown_finished = (
-                self.last_ictus_time is None
-                or (
+                self.stroke_start_y = (
+                    self.previous_y
+                )
+
+                self.stroke_lowest_y = y
+
+            else:
+
+                self.stroke_lowest_y = max(
+                    self.stroke_lowest_y,
+                    y
+                )
+
+        # Hand moving back up
+        else:
+
+            if self.descending:
+
+                stroke_size = (
+                    self.stroke_lowest_y
+                    - self.stroke_start_y
+                )
+
+                sufficiently_large = (
+                    stroke_size
+                    > self.min_stroke_size
+                )
+
+                cooldown_finished = (
+                    self.last_downbeat_time is None
+                    or
                     current_time
-                    - self.last_ictus_time
-                ) > self.cooldown
-            )
+                    - self.last_downbeat_time
+                    > self.cooldown
+                )
 
-            if cooldown_finished:
+                if (
+                    sufficiently_large
+                    and cooldown_finished
+                ):
 
-                if self.last_ictus_time is not None:
+                    if (
+                        self.last_downbeat_time
+                        is not None
+                    ):
 
-                    interval = (
-                        current_time
-                        - self.last_ictus_time
-                    )
-
-                    if interval > 0.15:
-
-                        self.intervals.append(
-                            interval
+                        interval = (
+                            current_time
+                            - self.last_downbeat_time
                         )
 
-                        average_interval = (
-                            sum(self.intervals)
-                            / len(self.intervals)
-                        )
+                        if interval > 0.25:
 
-                        raw_bpm = (
-                            60.0
-                            / average_interval
-                        )
-
-                        # Prevent wild jumps caused
-                        # by a single bad detection.
-                        if self.bars_per_minute > 0:
-
-                            max_change = 10
-
-                            raw_bpm = max(
-                                self.bars_per_minute
-                                - max_change,
-                                min(
-                                    self.bars_per_minute
-                                    + max_change,
-                                    raw_bpm
-                                )
+                            self.intervals.append(
+                                interval
                             )
 
-                        self.bars_per_minute = raw_bpm
+                            average_interval = (
+                                sum(self.intervals)
+                                / len(self.intervals)
+                            )
 
-                self.last_ictus_time = current_time
+                            self.bars_per_minute = (
+                                60.0
+                                / average_interval
+                            )
 
-        self.previous_velocity = velocity
+                    self.last_downbeat_time = (
+                        current_time
+                    )
+
+                    self.descending = False
+                    self.previous_y = y
+
+                    return True
+
+                self.descending = False
+
         self.previous_y = y
-        self.previous_time = current_time
 
-        return ictus_detected
+        return False
 
     def get_bars_per_minute(self):
 

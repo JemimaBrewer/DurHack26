@@ -169,16 +169,18 @@ class MaestroWindow(QWidget):
 
         self.audio_player.play()
 
+
     def update_frame(self):
+
         ret, frame = self.cap.read()
 
         if not ret:
             return
 
-        # Convert OpenCV BGR -> RGB
-        frame = self.hand_tracker.process_frame(frame)
-        bpm = self.analyser.get_bars_per_minute()
-        
+        frame = self.hand_tracker.process_frame(
+            frame
+        )
+
         if self.hand_tracker.current_fingertip:
 
             x, y = (
@@ -186,13 +188,17 @@ class MaestroWindow(QWidget):
             )
 
             new_downbeat = (
-                self.analyser.update(x, y)
+                self.analyser.update(
+                    x,
+                    y
+                )
             )
 
             if new_downbeat:
 
                 bpm = (
-                    self.analyser.get_bars_per_minute()
+                    self.analyser
+                    .get_bars_per_minute()
                 )
 
                 if bpm > 0:
@@ -202,7 +208,8 @@ class MaestroWindow(QWidget):
                     )
 
             bpm = (
-                self.analyser.get_bars_per_minute()
+                self.analyser
+                .get_bars_per_minute()
             )
 
             self.text_box.setText(
@@ -211,47 +218,77 @@ class MaestroWindow(QWidget):
                 f"{self.audio_player.get_rate():.2f}x"
             )
 
-
-
-            self.text_box.setText(
-                f"Bars per Minute: {bpm:.1f}\n"
-                f"Playback Rate: "
-                f"{self.audio_player.get_rate():.2f}x"
-            )
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        height, width, channel = frame.shape
-
-        qimage = QImage(
-            frame.data, width, height, channel * width, QImage.Format.Format_RGB888
+        frame = cv2.cvtColor(
+            frame,
+            cv2.COLOR_BGR2RGB
         )
 
-        pixmap = QPixmap.fromImage(qimage)
+        height, width, channel = (
+            frame.shape
+        )
+
+        qimage = QImage(
+            frame.data,
+            width,
+            height,
+            channel * width,
+            QImage.Format.Format_RGB888
+        )
+
+        pixmap = QPixmap.fromImage(
+            qimage
+        )
 
         scaled_pixmap = pixmap.scaled(
             self.camera_label.width(),
             self.camera_label.height(),
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-            Qt.TransformationMode.SmoothTransformation,
+            Qt.TransformationMode.SmoothTransformation
         )
 
-        rounded = QPixmap(self.camera_label.width(), self.camera_label.height())
-        rounded.fill(Qt.GlobalColor.transparent)
+        rounded = QPixmap(
+            self.camera_label.width(),
+            self.camera_label.height()
+        )
 
-        painter = QPainter(rounded)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rounded.fill(
+            Qt.GlobalColor.transparent
+        )
+
+        painter = QPainter(
+            rounded
+        )
+
+        painter.setRenderHint(
+            QPainter.RenderHint.Antialiasing
+        )
 
         path = QPainterPath()
+
         path.addRoundedRect(
-            0, 0, self.camera_label.width(), self.camera_label.height(), 24, 24
+            0,
+            0,
+            self.camera_label.width(),
+            self.camera_label.height(),
+            24,
+            24
         )
 
-        painter.setClipPath(path)
-        painter.drawPixmap(0, 0, scaled_pixmap)
+        painter.setClipPath(
+            path
+        )
+
+        painter.drawPixmap(
+            0,
+            0,
+            scaled_pixmap
+        )
+
         painter.end()
 
-        self.camera_label.setPixmap(rounded)
+        self.camera_label.setPixmap(
+            rounded
+        )
         
     def resizeEvent(self, event):
         camera_width = int(self.width() * 0.75)
