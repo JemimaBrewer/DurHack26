@@ -109,7 +109,6 @@ class MaestroWindow(QWidget):
         # Camera Label
         self.camera_label = QLabel()
         self.camera_label.setObjectName("cameraFrame")
-        self.camera_label.setFixedSize(1200, 675)
         self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.camera_label.setText("Starting Camera...")
 
@@ -200,6 +199,19 @@ class MaestroWindow(QWidget):
         painter.end()
 
         self.camera_label.setPixmap(rounded)
+        
+    def resizeEvent(self, event):
+        camera_width = int(self.width() * 0.75)
+
+        # Keep a 16:9 aspect ratio
+        camera_height = int(camera_width * 9 / 16)
+
+        self.camera_label.setFixedSize(
+            camera_width,
+            camera_height
+        )
+
+        super().resizeEvent(event)
 
     def closeEvent(self, event):
         self.cap.release()
