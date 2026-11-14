@@ -8,20 +8,12 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QVBoxLayout,
-    QHBoxLayout
+    QHBoxLayout,
 )
 
-from PyQt6.QtCore import (
-    Qt,
-    QTimer
-)
+from PyQt6.QtCore import Qt, QTimer
 
-from PyQt6.QtGui import (
-    QPixmap,
-    QImage,
-    QPainter,
-    QPainterPath
-)
+from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 
 
 class MaestroWindow(QWidget):
@@ -38,25 +30,32 @@ class MaestroWindow(QWidget):
         # Styling
         self.setStyleSheet("""
             QWidget {
-                background-color: #111827;
+                background-color: #0B1220;
                 color: white;
                 font-family: Segoe UI;
             }
+            QLabel#textBox {
+                background-color: #172033;
+                border-radius: 20px;
+                padding: 18px;
+                border: none;
+                font-size: 18px;
+                color: #E5E7EB;
+            }
+
 
             QPushButton#hamburger {
+                background-color: #172033;
+                border-radius: 20px;
                 border: none;
-                background: transparent;
                 color: white;
-                font-size: 28px;
-                padding: 10px;
+                font-size: 26px;
             }
 
             QLabel#cameraFrame {
                 background-color: #1F2937;
-                border: 2px solid #8B5CF6;
+                border: none;
                 border-radius: 24px;
-                color: white;
-                font-size: 20px;
             }
 
             QLabel#textBox {
@@ -79,7 +78,7 @@ class MaestroWindow(QWidget):
 
         self.menu_button = QPushButton("☰")
         self.menu_button.setObjectName("hamburger")
-        self.menu_button.setFixedSize(50, 50)
+        self.menu_button.setFixedSize(60, 60)
 
         top_bar.addWidget(self.menu_button)
         top_bar.addStretch()
@@ -92,11 +91,25 @@ class MaestroWindow(QWidget):
 
         centre_layout = QVBoxLayout()
         centre_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label = QLabel("Maestro")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setStyleSheet("""
+            font-size: 48px;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: 2px;
+        """)
 
+        centre_layout.addWidget(
+            self.title_label,
+            alignment=Qt.AlignmentFlag.AlignCenter
+        )
+
+        centre_layout.addSpacing(20)
         # Camera Label
         self.camera_label = QLabel()
         self.camera_label.setObjectName("cameraFrame")
-        self.camera_label.setFixedSize(960, 540)
+        self.camera_label.setFixedSize(1200, 675)
         self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.camera_label.setText("Starting Camera...")
 
@@ -107,16 +120,12 @@ class MaestroWindow(QWidget):
         self.text_box.setFixedWidth(350)
 
         centre_layout.addWidget(
-            self.camera_label,
-            alignment=Qt.AlignmentFlag.AlignCenter
+            self.camera_label, alignment=Qt.AlignmentFlag.AlignCenter
         )
 
         centre_layout.addSpacing(20)
 
-        centre_layout.addWidget(
-            self.text_box,
-            alignment=Qt.AlignmentFlag.AlignCenter
-        )
+        centre_layout.addWidget(self.text_box, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Stretch keeps content centred vertically
         main_layout.addStretch()
@@ -129,23 +138,31 @@ class MaestroWindow(QWidget):
         # Camera Setup
         # ======================
 
-        self.cap = cv2.VideoCapture(0)
-
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.cap = cv2.VideoCapture(
+            0,
+            cv2.CAP_DSHOW
+        )
+        self.cap.set(
+            cv2.CAP_PROP_FOURCC,
+            cv2.VideoWriter_fourcc(*"MJPG")
+        )
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        print(
+            self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
+            self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        )
 
         # Update camera roughly 30 FPS
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(33)
+        self.timer.start(16)
 
     def update_frame(self):
         ret, frame = self.cap.read()
-        
 
         if not ret:
             return
-
 
         # Convert OpenCV BGR -> RGB
         frame = self.hand_tracker.process_frame(frame)
@@ -155,11 +172,7 @@ class MaestroWindow(QWidget):
         height, width, channel = frame.shape
 
         qimage = QImage(
-            frame.data,
-            width,
-            height,
-            channel * width,
-            QImage.Format.Format_RGB888
+            frame.data, width, height, channel * width, QImage.Format.Format_RGB888
         )
 
         pixmap = QPixmap.fromImage(qimage)
@@ -168,13 +181,10 @@ class MaestroWindow(QWidget):
             self.camera_label.width(),
             self.camera_label.height(),
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
 
-        rounded = QPixmap(
-            self.camera_label.width(),
-            self.camera_label.height()
-        )
+        rounded = QPixmap(self.camera_label.width(), self.camera_label.height())
         rounded.fill(Qt.GlobalColor.transparent)
 
         painter = QPainter(rounded)
@@ -182,12 +192,7 @@ class MaestroWindow(QWidget):
 
         path = QPainterPath()
         path.addRoundedRect(
-            0,
-            0,
-            self.camera_label.width(),
-            self.camera_label.height(),
-            24,
-            24
+            0, 0, self.camera_label.width(), self.camera_label.height(), 24, 24
         )
 
         painter.setClipPath(path)
