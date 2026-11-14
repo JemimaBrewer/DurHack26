@@ -25,10 +25,10 @@ class HandTracker:
 
         self.trail = []
 
-        self.max_trail_length = 15
+        self.max_trail_length = 7
 
         self.frames_without_hand = 0
-        self.fade_delay = 10
+        self.fade_delay = 8
 
     def catmull_rom_spline(
         self,
@@ -142,8 +142,8 @@ class HandTracker:
                 )
 
                 thickness = max(
-                    1,
-                    int(6 * progress)
+                    2,
+                    int(8 * progress)
                 )
 
                 cv2.line(
