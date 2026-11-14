@@ -1,6 +1,7 @@
 import sys
 import cv2
 from hand_tracker import HandTracker
+from analyser import Analyser
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -157,6 +158,8 @@ class MaestroWindow(QWidget):
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(16)
 
+        self.analyser=Analyser()
+
     def update_frame(self):
         ret, frame = self.cap.read()
 
@@ -165,6 +168,18 @@ class MaestroWindow(QWidget):
 
         # Convert OpenCV BGR -> RGB
         frame = self.hand_tracker.process_frame(frame)
+
+        if self.hand_tracker.current_fingertip:
+
+            x, y = self.hand_tracker.current_fingertip
+
+            self.analyser.update(x, y)
+
+            bpm = self.analyser.get_bars_per_minute()
+
+            self.text_box.setText(
+                f"Bars per Minute: {bpm:.1f}"
+            )
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
