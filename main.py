@@ -110,7 +110,7 @@ class MaestroWindow(QWidget):
         # Camera Label
         self.camera_label = QLabel()
         self.camera_label.setObjectName("cameraFrame")
-        self.camera_label.setFixedSize(1200, 675)
+        self.camera_label.setFixedSize(1000, 560)
         self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.camera_label.setText("Starting Camera...")
 
