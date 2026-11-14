@@ -1,5 +1,6 @@
 import sys
 import cv2
+from hand_tracker import HandTracker
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -24,6 +25,7 @@ from PyQt6.QtGui import (
 class MaestroWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.hand_tracker = HandTracker()
 
         # Make window fill screen
         screen = QApplication.primaryScreen().availableGeometry()
@@ -137,11 +139,15 @@ class MaestroWindow(QWidget):
 
     def update_frame(self):
         ret, frame = self.cap.read()
+        
 
         if not ret:
             return
 
+
         # Convert OpenCV BGR -> RGB
+        frame = self.hand_tracker.process_frame(frame)
+
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         height, width, channel = frame.shape
