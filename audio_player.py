@@ -30,7 +30,7 @@ class AudioPlayer:
         )
 
         self.current_rate = 1.0
-        self.current_volume = 100
+        self.current_volume = 150
 
     def play(self):
         self.player.play()
@@ -39,7 +39,7 @@ class AudioPlayer:
         self.player.stop()
 
     def set_volume(self, volume):
-        self.current_volume = max(0, min(200, int(volume)))
+        self.current_volume = max(1, min(200, int(volume)))
         self.player.audio_set_volume(self.current_volume)
 
     def get_volume(self):
