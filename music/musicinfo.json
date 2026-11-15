@@ -1,6 +1,16 @@
 {
 "songs": [
 {
+"title": "III. Scherzo, Molto vivace",
+"artist_or_composer": "Dvorak",
+"release_year": 1893,
+"beats_per_minute": 90,
+"beats_per_bar": 1,
+"album_or_symphony": "Symphony No. 9",
+"image_url": "dvorak.jpg",
+"audio_url": "dvorak3.mp3"
+},
+{
 "title": "IV. Finale, Allegro con fuoco",
 "artist_or_composer": "Dvorak",
 "release_year": 1893,
