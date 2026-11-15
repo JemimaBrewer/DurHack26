@@ -49,6 +49,16 @@
 "album_or_symphony": "Uptown Special",
 "image_url": "uptown.jpg",
 "audio_url": "uptown.mp3"
+},
+{
+"title": "Carol of the Bells",
+"artist_or_composer": "Leontovych, Mykola",
+"release_year": 1916,
+"beats_per_minute": 50,
+"beats_per_bar": 3,
+"album_or_symphony": "Traditional Ukrainian",
+"image_url": "leontovych.jpg",
+"audio_url": "leontovych.mp3"
 }
 ]
 }

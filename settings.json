@@ -3,7 +3,7 @@
   "dynamic_volume": true,
   "song_preview": true,
   "visual_effects": false,
-  "visual_countdown": true,
-  "metronome_sound": true,
-  "selected_song": 4
+  "visual_countdown": false,
+  "metronome_sound": false,
+  "selected_song": 5
 }
