@@ -2,104 +2,55 @@ from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
     QPushButton,
-    QVBoxLayout
+    QVBoxLayout,
+    QHBoxLayout,
+    QFrame
 )
 
 from PyQt6.QtCore import Qt
 
 
 class TitleScreen(QWidget):
-
     def __init__(self):
-
         super().__init__()
+        self.setWindowTitle("BeatBuddy")
+        self.setObjectName("titleScreen")
 
-        self.setWindowTitle("Maestro")
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.addWidget(QLabel("BEATBUDDY"))
+        header.addStretch()
 
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #0B1220;
-                color: white;
-                font-family: Segoe UI;
-            }
+        card = QFrame()
+        card.setObjectName("welcomeCard")
+        card.setMaximumWidth(560)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(42, 38, 42, 42)
+        card_layout.setSpacing(0)
 
-            QLabel#title {
-                font-size: 72px;
-                font-weight: 800;
-                color: white;
-            }
-
-            QLabel#subtitle {
-                font-size: 24px;
-                color: #9CA3AF;
-            }
-
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border: none;
-                border-radius: 18px;
-                padding: 16px;
-                font-size: 24px;
-                font-weight: 600;
-            }
-
-            QPushButton:hover {
-                background-color: #3B82F6;
-            }
-
-            QPushButton:pressed {
-                background-color: #1D4ED8;
-            }
-        """)
-
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.title_label = QLabel("MAESTRO")
+        self.title_label = QLabel("Get started")
         self.title_label.setObjectName("title")
-        self.title_label.setAlignment(
-            Qt.AlignmentFlag.AlignCenter
-        )
-
-        self.subtitle_label = QLabel(
-            "Conducting Practice Assistant"
-        )
+        self.title_label.setWordWrap(True)
+        self.subtitle_label = QLabel("Test your timing and get to know some pieces.")
         self.subtitle_label.setObjectName("subtitle")
-        self.subtitle_label.setAlignment(
-            Qt.AlignmentFlag.AlignCenter
-        )
+        self.subtitle_label.setWordWrap(True)
+        self.start_button = QPushButton("Start a practice session")
+        self.start_button.setObjectName("primaryButton")
+        self.start_button.setMinimumHeight(48)
+        self.start_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.start_button = QPushButton(
-            "Start Session"
-        )
+        #card_layout.addWidget(QLabel("CONDUCTOR PRACTICE"))
+        #card_layout.addSpacing(18)
+        card_layout.addWidget(self.title_label)
+        card_layout.addSpacing(14)
+        card_layout.addWidget(self.subtitle_label)
+        card_layout.addSpacing(30)
+        card_layout.addWidget(self.start_button)
 
-        self.start_button.setFixedSize(
-            260,
-            75
-        )
-
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 28)
+        layout.setSpacing(20)
+        layout.addLayout(header)
         layout.addStretch()
-
-        layout.addWidget(
-            self.title_label,
-            alignment=Qt.AlignmentFlag.AlignCenter
-        )
-
-        layout.addSpacing(10)
-
-        layout.addWidget(
-            self.subtitle_label,
-            alignment=Qt.AlignmentFlag.AlignCenter
-        )
-
-        layout.addSpacing(50)
-
-        layout.addWidget(
-            self.start_button,
-            alignment=Qt.AlignmentFlag.AlignCenter
-        )
-
+        layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
-
-        self.setLayout(layout)
