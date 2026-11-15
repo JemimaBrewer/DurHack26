@@ -186,9 +186,9 @@ class MaestroWindow(QWidget):
         self.effects_overlay.setObjectName("effectsOverlay")
         self.effects_overlay.setGeometry(
             0,
-            max(0, self.camera_label.height() - 120),
+            0,
             self.camera_label.width(),
-            min(120, self.camera_label.height()),
+            self.camera_label.height(),
         )
         self.countdown_overlay = QFrame(self.camera_label)
         self.countdown_overlay.setObjectName("countdownOverlay")
@@ -1118,9 +1118,9 @@ class MaestroWindow(QWidget):
         if hasattr(self, "effects_overlay"):
             self.effects_overlay.setGeometry(
                 0,
-                max(0, self.camera_label.height() - 120),
+                0,
                 self.camera_label.width(),
-                min(120, self.camera_label.height()),
+                self.camera_label.height(),
             )
 
     def resizeEvent(self, event):

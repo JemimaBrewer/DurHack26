@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QWidget
 class PygameFire:
     PARTICLE_COUNT = 2400
     MAX_FPS = 60
+    RENDER_SCALE = 0.5
 
     def __init__(self):
         pygame.init()
@@ -20,29 +21,63 @@ class PygameFire:
         self.elapsed = 0.0
         self.surface = None
         self.particles = []
+        self.hotspots = []
         self.width = 0
         self.height = 0
+        self.display_width = 0
+        self.display_height = 0
 
     def resize(self, width, height):
-        width = max(1, width)
-        height = max(1, height)
+        self.display_width = max(1, width)
+        self.display_height = max(1, height)
+        width = max(1, int(width * self.RENDER_SCALE))
+        height = max(1, int(height * self.RENDER_SCALE))
         if (width, height) == (self.width, self.height):
             return
         self.width, self.height = width, height
         self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.particles_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.glow_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.alpha_mask = pygame.Surface((width, height), pygame.SRCALPHA)
+        hotspot_positions = (0.04, 0.14, 0.25, 0.36, 0.48, 0.59, 0.70, 0.83, 0.95)
+        self.hotspots = [
+            {
+                "x": min(
+                    width,
+                    max(0, (position + self.random.uniform(-0.025, 0.025)) * width),
+                ),
+                "strength": self.random.uniform(0.35, 1.9),
+            }
+            for position in hotspot_positions
+        ]
         self.particles = [self._new_particle(initial=True) for _ in range(self.PARTICLE_COUNT)]
 
     def _new_particle(self, initial=False):
         life = self.random.uniform(0.55, 1.8)
+        hotspot = self.random.choices(
+            self.hotspots,
+            weights=[hotspot["strength"] for hotspot in self.hotspots],
+            k=1,
+        )[0]
+        cluster_spread = self.width / max(len(self.hotspots) * 4.8, 1)
+        strength = hotspot["strength"]
         return {
-            "x": self.random.uniform(0, self.width),
-            "y": self.random.uniform(self.height * 0.72, self.height) if initial else self.height + 4,
-            "vx": self.random.uniform(-18, 18),
-            "vy": self.random.uniform(-250, -90),
+            "x": min(
+                self.width,
+                max(0, self.random.gauss(hotspot["x"], cluster_spread)),
+            ),
+            "y": (
+                self.random.uniform(self.height * 0.82, self.height * 1.08)
+                if initial
+                else self.height + self.random.uniform(4, 14)
+            ),
+            "vx": self.random.uniform(-18, 18) * strength,
+            "vy": self.random.uniform(-440, -140) * strength,
             "life": self.random.uniform(0, life) if initial else 0,
             "max_life": life,
-            "size": self.random.uniform(0.8, 3.2),
+            "size": self.random.uniform(0.8, 3.8) * (0.8 + strength * 0.35),
             "noise": self.random.uniform(-1000, 1000),
+            "hotspot": hotspot,
         }
 
     def update(self):
@@ -57,13 +92,18 @@ class PygameFire:
                 continue
             progress = particle["life"] / particle["max_life"]
             turbulence = noise.pnoise3(
-                particle["x"] * 0.012,
-                particle["y"] * 0.012,
+                particle["x"] * 0.009,
+                particle["y"] * 0.009,
                 self.elapsed * 0.7 + particle["noise"],
                 octaves=3,
             )
-            particle["vx"] += turbulence * 180 * dt
-            particle["vy"] -= (90 + (1 - progress) * 90) * dt
+            hotspot = particle["hotspot"]
+            target_x = hotspot["x"] + math.sin(self.elapsed * 1.7 + particle["noise"]) * self.width * 0.025
+            particle["vx"] += (
+                turbulence * 180
+                + (target_x - particle["x"]) * 0.8
+            ) * dt
+            particle["vy"] -= (180 + (1 - progress) * 180) * dt
             particle["x"] += particle["vx"] * dt
             particle["y"] += particle["vy"] * dt
             if particle["x"] < -20 or particle["x"] > self.width + 20 or particle["y"] < -20:
@@ -73,22 +113,31 @@ class PygameFire:
 
     def _render(self):
         self.surface.fill((0, 0, 0, 0))
-        particles = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
-        glow = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
-        alpha_mask = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
+        particles = self.particles_surface
+        glow = self.glow_surface
+        alpha_mask = self.alpha_mask
+        particles.fill((0, 0, 0, 0))
+        glow.fill((0, 0, 0, 0))
+        alpha_mask.fill((0, 0, 0, 0))
         for particle in self.particles:
             progress = particle["life"] / particle["max_life"]
             color = self._cooling_color(progress)
             center = (int(particle["x"]), int(particle["y"]))
             radius = max(1, int(particle["size"] * (1 - progress * 0.6)))
             lifetime_fade = math.sin(math.pi * progress) ** 0.7
-            edge_fade = min(1.0, max(0.0, particle["y"] / (self.height * 0.3)))
+            edge_fade = min(
+                1.0,
+                max(
+                    0.0,
+                    (particle["y"] - self.height * 0.33) / (self.height * 0.34),
+                ),
+            )
             alpha = max(0, int(color[3] * lifetime_fade * edge_fade))
             color = (*color[:3], alpha)
             pygame.draw.circle(particles, color, center, radius)
             pygame.draw.circle(
                 glow,
-                (*color[:3], max(0, color[3] // 4)),
+                (*color[:3], max(0, color[3] // 5)),
                 center,
                 radius * 4,
             )
@@ -110,11 +159,12 @@ class PygameFire:
     @staticmethod
     def _cooling_color(progress):
         stops = (
-            (0.0, (255, 225, 125)),
-            (0.22, (255, 132, 18)),
-            (0.5, (245, 58, 8)),
-            (0.8, (180, 22, 5)),
-            (1.0, (75, 7, 4)),
+            (0.0, (238, 142, 24)),
+            (0.12, (220, 82, 8)),
+            (0.25, (205, 42, 4)),
+            (0.52, (145, 18, 2)),
+            (0.8, (72, 7, 2)),
+            (1.0, (15, 2, 1)),
         )
         for index in range(len(stops) - 1):
             start, start_color = stops[index]
@@ -125,18 +175,24 @@ class PygameFire:
                     int(start_color[channel] + (end_color[channel] - start_color[channel]) * ratio)
                     for channel in range(3)
                 )
-                return (*rgb, max(0, int(255 * (1 - progress * 0.55))))
+                return (*rgb, max(0, int(220 * (1 - progress * 0.55))))
         return (*stops[-1][1], 0)
 
     def image(self):
         if self.surface is None:
             return QImage()
-        return QImage(
+        image = QImage(
             pygame.image.tostring(self.surface, "RGBA"),
             self.width,
             self.height,
             QImage.Format.Format_RGBA8888,
         ).copy()
+        return image.scaled(
+            self.display_width,
+            self.display_height,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
 
 
 class VisualEffectsOverlay(QWidget):

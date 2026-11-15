@@ -1,8 +1,8 @@
 {
   "theme": "forest",
   "dynamic_volume": true,
-  "song_preview": false,
-  "visual_effects": true,
+  "song_preview": true,
+  "visual_effects": false,
   "visual_countdown": false,
   "metronome_sound": false,
   "selected_song": 1
