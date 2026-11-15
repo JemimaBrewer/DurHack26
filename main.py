@@ -1,6 +1,10 @@
 import sys
 import math
 import json
+import time
+import struct
+import tempfile
+import wave
 from collections import deque
 from pathlib import Path
 import cv2
@@ -29,10 +33,12 @@ from PyQt6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
     QRect,
+    QUrl,
     pyqtSignal,
 )
 
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
+from PyQt6.QtMultimedia import QSoundEffect
 
 from audio_player import AudioPlayer
 
@@ -63,6 +69,9 @@ class MaestroWindow(QWidget):
         self.countdown_animation = None
         self.countdown_animations = []
         self.active_countdown_bars = []
+        self.target_volume = None
+        self.last_volume_update = None
+        self.metronome_click = self._create_metronome_click()
         self._settings_ready = False
 
         self.setWindowTitle("BeatBuddy")
@@ -107,9 +116,17 @@ class MaestroWindow(QWidget):
         info_layout = QVBoxLayout(info_card)
         info_layout.setContentsMargins(22, 18, 22, 18)
         info_layout.setSpacing(4)
+        metrics_header = QHBoxLayout()
         metrics_label = QLabel("SESSION METRICS")
         metrics_label.setObjectName("metricsLabel")
-        info_layout.addWidget(metrics_label, alignment=Qt.AlignmentFlag.AlignLeft)
+        metrics_header.addWidget(metrics_label)
+        metrics_header.addStretch()
+        self.volume_label = QLabel()
+        self.volume_label.setObjectName("volumeMetric")
+        self.volume_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.volume_label.setVisible(self.dynamic_volume_enabled)
+        metrics_header.addWidget(self.volume_label)
+        info_layout.addLayout(metrics_header)
         self.text_box = QLabel("Move your index finger to begin a downbeat.")
         self.text_box.setObjectName("textBox")
         self.text_box.setWordWrap(True)
@@ -147,6 +164,7 @@ class MaestroWindow(QWidget):
         self.preview_panel.setVisible(self.settings["song_preview"])
         self._settings_ready = True
         self._save_settings()
+        self._update_volume_display()
 
         center_panel = QWidget()
         center_panel.setLayout(main_layout)
@@ -170,10 +188,6 @@ class MaestroWindow(QWidget):
         self.countdown_overlay = QFrame(self.camera_label)
         self.countdown_overlay.setObjectName("countdownOverlay")
         self.countdown_overlay.setFixedHeight(56)
-        self.countdown_left_bar = QFrame(self.countdown_overlay)
-        self.countdown_left_bar.setObjectName("countdownBar")
-        self.countdown_right_bar = QFrame(self.countdown_overlay)
-        self.countdown_right_bar.setObjectName("countdownBar")
         self.countdown_overlay.hide()
         self.set_theme(self.current_theme)
         QTimer.singleShot(0, self._update_song_art)
@@ -240,6 +254,39 @@ class MaestroWindow(QWidget):
             raise RuntimeError(f"No songs found in {metadata_path}")
         return songs
 
+    @staticmethod
+    def _create_metronome_click():
+        click_path = Path(tempfile.gettempdir()) / "beatbuddy-metronome-click.wav"
+        if not click_path.exists():
+            sample_rate = 44100
+            duration = 0.035
+            frequency = 1450
+            samples = int(sample_rate * duration)
+            frames = bytearray()
+            for index in range(samples):
+                progress = index / samples
+                envelope = (1 - progress) ** 4
+                sample = int(
+                    0.55
+                    * envelope
+                    * math.sin(2 * math.pi * frequency * index / sample_rate)
+                    * 32767
+                )
+                frames.extend(struct.pack("<h", sample))
+            with wave.open(str(click_path), "wb") as click_file:
+                click_file.setnchannels(1)
+                click_file.setsampwidth(2)
+                click_file.setframerate(sample_rate)
+                click_file.writeframes(frames)
+
+        effect = QSoundEffect()
+        effect.setSource(QUrl.fromLocalFile(str(click_path)))
+        effect.setVolume(0.7)
+        return effect
+
+    def _play_metronome_click(self):
+        self.metronome_click.play()
+
     def _build_music_panel(self):
         layout = QVBoxLayout(self.preview_panel)
         layout.setContentsMargins(20, 24, 20, 24)
@@ -255,7 +302,7 @@ class MaestroWindow(QWidget):
         self.song_art = QLabel()
         self.song_art.setObjectName("songArt")
         self.song_art.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.song_art.setFixedHeight(150)
+        self.song_art.setFixedWidth(280)
         layout.addWidget(self.song_art)
 
         self.song_title = QLabel()
@@ -357,13 +404,28 @@ class MaestroWindow(QWidget):
         if pixmap.isNull():
             self.song_art.clear()
         else:
-            self.song_art.setPixmap(
-                pixmap.scaled(
-                    self.song_art.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
+            scaled = pixmap.scaled(
+                self.song_art.width(),
+                pixmap.height() * self.song_art.width() // pixmap.width(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
+            self.song_art.setFixedSize(scaled.size())
+            size = scaled.size()
+            image = QPixmap(size)
+            image.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(image)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            path = QPainterPath()
+            path.addRoundedRect(0, 0, size.width(), size.height(), 10, 10)
+            painter.setClipPath(path)
+            painter.drawPixmap(
+                (size.width() - scaled.width()) // 2,
+                (size.height() - scaled.height()) // 2,
+                scaled,
+            )
+            painter.end()
+            self.song_art.setPixmap(image)
 
     def _start_selected_song(self):
         self._create_selected_player()
@@ -473,8 +535,8 @@ class MaestroWindow(QWidget):
                 letter-spacing: 1px;
             }}
             QLabel#songArt {{
-                background-color: {raised};
-                border: 1px solid {border};
+                background-color: transparent;
+                border: none;
                 border-radius: 10px;
             }}
             QLabel#songTitle {{
@@ -492,6 +554,9 @@ class MaestroWindow(QWidget):
             QFrame#countdownBar {{
                 background-color: #FFFFFF;
                 border-radius: 3px;
+            }}
+            QFrame#countdownBar[atCenter="true"] {{
+                background-color: {accent};
             }}
             QLabel#musicSectionLabel {{
                 color: {muted};
@@ -634,6 +699,11 @@ class MaestroWindow(QWidget):
                 font-weight: 700;
                 letter-spacing: 1px;
             }}
+            QLabel#volumeMetric {{
+                color: {muted};
+                font-size: 12px;
+                font-weight: 700;
+            }}
         """
 
     def toggle_settings(self):
@@ -644,9 +714,23 @@ class MaestroWindow(QWidget):
 
     def set_dynamic_volume(self, enabled):
         self.dynamic_volume_enabled = enabled
+        self.volume_label.setVisible(enabled)
         self._save_settings()
         if hasattr(self, "audio_player"):
             self.audio_player.set_volume(50 if enabled else 150)
+            self.target_volume = self.audio_player.get_volume()
+            self.last_volume_update = time.monotonic()
+        self._update_volume_display()
+
+    def _update_volume_display(self):
+        if not self.dynamic_volume_enabled:
+            return
+        volume = (
+            self.audio_player.get_volume()
+            if hasattr(self, "audio_player")
+            else 150
+        )
+        self.volume_label.setText(f"Volume: {round(volume / 2)}%")
 
     def set_visual_effects(self, enabled):
         self.visual_effects_enabled = enabled
@@ -691,6 +775,9 @@ class MaestroWindow(QWidget):
             reference_bars_per_minute=song["beats_per_minute"],
         )
         self.audio_player.set_volume(50 if self.dynamic_volume_enabled else 150)
+        self.target_volume = self.audio_player.get_volume()
+        self.last_volume_update = time.monotonic()
+        self._update_volume_display()
 
     def _countdown_tick(self):
         song = self.songs[self.selected_song_index]
@@ -711,7 +798,7 @@ class MaestroWindow(QWidget):
         if self.visual_countdown_toggle.isChecked():
             self._animate_countdown_bars()
         if self.metronome_sound_toggle.isChecked():
-            QApplication.beep()
+            self._play_metronome_click()
         self.countdown_beats_remaining -= 1
         interval_ms = round(60_000 / float(song["beats_per_minute"]))
         self.countdown_timer.start(interval_ms)
@@ -740,31 +827,41 @@ class MaestroWindow(QWidget):
 
         left_animation = QPropertyAnimation(left_bar, b"geometry", self)
         left_animation.setStartValue(left_bar.geometry())
-        left_animation.setEndValue(QRect(center - bar_width, 0, bar_width, height))
+        center_bar = QRect(center - bar_width // 2, 0, bar_width, height)
+        left_animation.setEndValue(center_bar)
         right_animation = QPropertyAnimation(right_bar, b"geometry", self)
         right_animation.setStartValue(right_bar.geometry())
-        right_animation.setEndValue(QRect(center, 0, bar_width, height))
+        right_animation.setEndValue(center_bar)
         duration = max(100, round(60_000 / self.songs[self.selected_song_index]["beats_per_minute"]))
         for animation in (left_animation, right_animation):
             animation.setDuration(duration)
-            animation.setEasingCurve(QEasingCurve.Type.Linear)
+            animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
         animation_group = QParallelAnimationGroup(self)
         animation_group.addAnimation(left_animation)
         animation_group.addAnimation(right_animation)
         animation_group.finished.connect(
-            lambda: (
-                self.active_countdown_bars.remove(left_bar)
-                if left_bar in self.active_countdown_bars
-                else None,
-                self.active_countdown_bars.remove(right_bar)
-                if right_bar in self.active_countdown_bars
-                else None,
-                left_bar.deleteLater(),
-                right_bar.deleteLater(),
-            )
+            lambda: self._finish_countdown_bars(left_bar, right_bar)
         )
         self.countdown_animations.append(animation_group)
         animation_group.start()
+
+    def _finish_countdown_bars(self, left_bar, right_bar):
+        for bar in (left_bar, right_bar):
+            bar.setProperty("atCenter", True)
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
+            bar.update()
+
+        QTimer.singleShot(
+            120,
+            lambda: self._remove_countdown_bars(left_bar, right_bar),
+        )
+
+    def _remove_countdown_bars(self, left_bar, right_bar):
+        for bar in (left_bar, right_bar):
+            if bar in self.active_countdown_bars:
+                self.active_countdown_bars.remove(bar)
+            bar.deleteLater()
 
     def _start_visual_metronome(self):
         if self.beat_timer is None:
@@ -777,7 +874,7 @@ class MaestroWindow(QWidget):
         if self.visual_countdown_toggle.isChecked():
             self._animate_countdown_bars()
         if self.metronome_sound_toggle.isChecked():
-            QApplication.beep()
+            self._play_metronome_click()
 
     def _stop_visual_metronome(self):
         if self.beat_timer is not None:
@@ -812,7 +909,16 @@ class MaestroWindow(QWidget):
         if not self.dynamic_volume_enabled or not hasattr(self, "audio_player"):
             return
         movement_percent = sum(self.movement_history) / max(len(self.movement_history), 1)
-        self.audio_player.set_volume(50 + min(150, movement_percent * 150))
+        self.target_volume = 50 + min(350, movement_percent * 70)
+        now = time.monotonic()
+        elapsed = now - (self.last_volume_update or now)
+        beat_duration = 60 / float(self.songs[self.selected_song_index]["beats_per_minute"])
+        smoothing = min(1.0, elapsed / beat_duration)
+        current_volume = self.audio_player.get_volume()
+        next_volume = current_volume + (self.target_volume - current_volume) * smoothing
+        self.audio_player.set_volume(next_volume)
+        self.last_volume_update = now
+        self._update_volume_display()
 
     def update_visual_effect(self, bpm):
         if not self.visual_effects_enabled or bpm <= 0:
