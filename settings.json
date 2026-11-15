@@ -1,9 +1,9 @@
 {
-  "theme": "paper",
-  "dynamic_volume": false,
+  "theme": "forest",
+  "dynamic_volume": true,
   "song_preview": true,
-  "visual_effects": true,
-  "visual_countdown": false,
-  "metronome_sound": false,
-  "selected_song": 2
+  "visual_effects": false,
+  "visual_countdown": true,
+  "metronome_sound": true,
+  "selected_song": 4
 }

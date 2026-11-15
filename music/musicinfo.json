@@ -6,17 +6,17 @@
 "release_year": 1893,
 "beats_per_minute": 90,
 "beats_per_bar": 1,
-"album_or_symphony": "Symphony No. 9",
+"album_or_symphony": "Symphony No. 9, New World",
 "image_url": "dvorak.jpg",
 "audio_url": "dvorak3.mp3"
 },
 {
 "title": "IV. Finale, Allegro con fuoco",
-"artist_or_composer": "Dvorak",
+"artist_or_composer": "Dvorak, Antonin",
 "release_year": 1893,
 "beats_per_minute": 37.5,
 "beats_per_bar": 4,
-"album_or_symphony": "Symphony No. 9",
+"album_or_symphony": "Symphony No. 9, New World",
 "image_url": "dvorak.jpg",
 "audio_url": "dvorak.mp3"
 },
@@ -31,14 +31,24 @@
 "audio_url": "menken.mp3"
 },
 {
-"title": "Into the Unknown",
-"artist_or_composer": "Alan Menken",
-"release_year": 1992,
-"beats_per_minute": 61,
-"beats_per_bar": 2,
-"album_or_symphony": "Aladdin",
-"image_url": "aladdin.jpg",
-"audio_url": "menken.mp3"
+"title": "I. Allegro con brio",
+"artist_or_composer": "Beethoven, Ludwig van",
+"release_year": 1804,
+"beats_per_minute": 57,
+"beats_per_bar": 3,
+"album_or_symphony": "Symphony No. 3, Eroica",
+"image_url": "beethoven.jpg",
+"audio_url": "beethoven.mp3"
+},
+{
+"title": "Uptown Funk",
+"artist_or_composer": "Mark Ronson (ft. Bruno Mars)",
+"release_year": 2014,
+"beats_per_minute": 29,
+"beats_per_bar": 4,
+"album_or_symphony": "Uptown Special",
+"image_url": "uptown.jpg",
+"audio_url": "uptown.mp3"
 }
 ]
 }

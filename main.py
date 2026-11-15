@@ -442,13 +442,15 @@ class MaestroWindow(QWidget):
         layout.setContentsMargins(22, 24, 22, 24)
         layout.setSpacing(16)
 
-        title_row = QHBoxLayout()
-        title_row.addWidget(QLabel("SETTINGS"))
-        close_button = QPushButton("×")
+        settings_title = QLabel("SETTINGS")
+        settings_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(settings_title)
+        close_button = QPushButton("EXIT")
         close_button.setObjectName("drawerClose")
+        close_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_button.setFixedHeight(36)
         close_button.clicked.connect(self.toggle_settings)
-        title_row.addWidget(close_button)
-        layout.addLayout(title_row)
+        layout.addWidget(close_button)
 
         self.dynamic_volume_toggle = QCheckBox("Dynamic volume")
         self.dynamic_volume_toggle.setToolTip("Raise volume as your hand movement covers more of the camera.")
@@ -478,21 +480,31 @@ class MaestroWindow(QWidget):
         self.theme_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.theme_name_label)
 
-        theme_row = QHBoxLayout()
-        for theme_name, color in (
+        theme_rows = [QHBoxLayout(), QHBoxLayout()]
+        for index, (theme_name, color) in enumerate((
             ("midnight", "#26354D"),
             ("paper", "#E9DDC7"),
             ("forest", "#294A43"),
-        ):
+            ("ocean", "#1D5668"),
+            ("sunset", "#A6533C"),
+            ("cherry_blossom", "#E8A6B8"),
+        )):
             button = QPushButton()
             button.setObjectName(f"theme_{theme_name}")
             button.setFixedSize(42, 42)
-            button.setToolTip(theme_name.title())
+            display_name = theme_name.replace("_", " ").title()
+            button.setToolTip(display_name)
             button.clicked.connect(lambda checked=False, name=theme_name: self.theme_selected.emit(name))
-            button.enterEvent = lambda event, name=theme_name: self.theme_name_label.setText(name.title())
-            button.leaveEvent = lambda event: self.theme_name_label.setText(self.current_theme.title())
-            theme_row.addWidget(button)
-        layout.addLayout(theme_row)
+            button.enterEvent = lambda event, name=display_name: self.theme_name_label.setText(name)
+            button.leaveEvent = (
+                lambda event: self.theme_name_label.setText(
+                    self.current_theme.replace("_", " ").title()
+                )
+            )
+            theme_rows[index // 3].addWidget(button)
+        for theme_row in theme_rows:
+            theme_row.addStretch()
+            layout.addLayout(theme_row)
         layout.addStretch()
         return panel
 
@@ -500,7 +512,7 @@ class MaestroWindow(QWidget):
         if isinstance(theme, bool):
             theme = "midnight" if theme else "paper"
         self.current_theme = theme
-        self.theme_name_label.setText(theme.title())
+        self.theme_name_label.setText(theme.replace("_", " ").title())
         self.setStyleSheet(self._stylesheet(theme))
         if self._settings_ready:
             self._save_settings()
@@ -514,6 +526,18 @@ class MaestroWindow(QWidget):
         elif theme == "paper":
             background, surface, raised, text, muted, border, accent = (
                 "#F5F2EC", "#FFFCF7", "#F0EBE1", "#17202D", "#667085", "#D8D1C4", "#DAC2ED"
+            )
+        elif theme == "ocean":
+            background, surface, raised, text, muted, border, accent = (
+                "#0D2732", "#123D4A", "#1A4D5C", "#F1FBFC", "#9FC5CB", "#286174", "#39A9C0"
+            )
+        elif theme == "sunset":
+            background, surface, raised, text, muted, border, accent = (
+                "#321D25", "#4A292C", "#60352F", "#FFF7F0", "#DDB8A7", "#875047", "#E7885B"
+            )
+        elif theme == "cherry_blossom":
+            background, surface, raised, text, muted, border, accent = (
+                "#FFF0EE", "#FFF9F8", "#F7DDD9", "#4A2C35", "#966570", "#E3B5BA", "#D36F89"
             )
         else:
             background, surface, raised, text, muted, border, accent = (
@@ -609,11 +633,24 @@ class MaestroWindow(QWidget):
                 font-weight: 700;
             }}
             QPushButton#playButton:hover {{ background-color: {text}; color: {background}; }}
-            QPushButton#menuButton, QPushButton#drawerClose {{
+            QPushButton#menuButton {{
                 background-color: transparent;
                 color: {text};
                 border: none;
                 font-size: 22px;
+            }}
+            QPushButton#drawerClose {{
+                background-color: {surface};
+                color: {accent};
+                border: 1px solid {accent};
+                border-radius: 8px;
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QPushButton#drawerClose:hover {{
+                background-color: {accent};
+                color: #FFFFFF;
             }}
             QCheckBox {{
                 color: {text};
@@ -635,15 +672,22 @@ class MaestroWindow(QWidget):
                 color: {muted};
                 font-size: 13px;
             }}
-            QPushButton#theme_midnight, QPushButton#theme_paper, QPushButton#theme_forest {{
+            QPushButton#theme_midnight, QPushButton#theme_paper, QPushButton#theme_forest,
+            QPushButton#theme_ocean, QPushButton#theme_sunset, QPushButton#theme_cherry_blossom {{
                 border-radius: 21px;
                 border: 2px solid {border};
             }}
             QPushButton#theme_midnight {{ background: #26354D; }}
             QPushButton#theme_paper {{ background: #E9DDC7; }}
             QPushButton#theme_forest {{ background: #294A43; }}
+            QPushButton#theme_ocean {{ background: #1D5668; }}
+            QPushButton#theme_sunset {{ background: #A6533C; }}
+            QPushButton#theme_cherry_blossom {{ background: #F2A7B8; }}
             QPushButton#theme_midnight:hover, QPushButton#theme_paper:hover,
-            QPushButton#theme_forest:hover {{ border-color: {accent}; }}
+            QPushButton#theme_forest:hover, QPushButton#theme_ocean:hover,
+            QPushButton#theme_sunset:hover, QPushButton#theme_cherry_blossom:hover {{
+                border-color: {accent};
+            }}
             QLabel#effectsBadge {{
                 background-color: {surface};
                 color: {text};
