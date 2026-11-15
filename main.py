@@ -1,6 +1,8 @@
 import sys
 import math
+import json
 from collections import deque
+from pathlib import Path
 import cv2
 from hand_tracker import HandTracker
 from analyser import Analyser
@@ -15,7 +17,8 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QFrame,
     QSizePolicy,
-    QCheckBox
+    QCheckBox,
+    QScrollArea
 )
 
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
@@ -39,6 +42,10 @@ class MaestroWindow(QWidget):
         self.movement_history = deque(maxlen=8)
         self.dynamic_volume_enabled = False
         self.visual_effects_enabled = False
+        self.music_dir = Path(__file__).resolve().parent / "music"
+        self.songs = self._load_songs()
+        self.selected_song_index = 0
+        self.song_buttons = []
 
         self.setWindowTitle("BeatBuddy")
         self.setObjectName("mainScreen")
@@ -104,11 +111,9 @@ class MaestroWindow(QWidget):
 
         self.preview_panel = QFrame()
         self.preview_panel.setObjectName("previewPanel")
-        preview_layout = QVBoxLayout(self.preview_panel)
-        preview_layout.addWidget(QLabel("SONG PREVIEW"))
-        preview_layout.addStretch()
-        self.preview_panel.setFixedWidth(240)
-        self.preview_panel.setVisible(False)
+        self._build_music_panel()
+        self.preview_panel.setFixedWidth(320)
+        self.preview_toggle.setChecked(True)
 
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -122,6 +127,121 @@ class MaestroWindow(QWidget):
         self.effects_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.effects_label.hide()
         self.set_theme("midnight")
+
+    def _load_songs(self):
+        metadata_path = self.music_dir / "musicinfo.json"
+        try:
+            with metadata_path.open(encoding="utf-8") as metadata_file:
+                songs = json.load(metadata_file).get("songs", [])
+        except (OSError, json.JSONDecodeError) as error:
+            raise RuntimeError(f"Unable to load music metadata from {metadata_path}") from error
+        if not songs:
+            raise RuntimeError(f"No songs found in {metadata_path}")
+        return songs
+
+    def _build_music_panel(self):
+        layout = QVBoxLayout(self.preview_panel)
+        layout.setContentsMargins(20, 24, 20, 24)
+        layout.setSpacing(12)
+
+        title_row = QHBoxLayout()
+        title = QLabel("MUSIC LIBRARY")
+        title.setObjectName("musicPanelTitle")
+        title_row.addWidget(title)
+        title_row.addStretch()
+        layout.addLayout(title_row)
+
+        self.song_art = QLabel()
+        self.song_art.setObjectName("songArt")
+        self.song_art.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.song_art.setFixedHeight(150)
+        layout.addWidget(self.song_art)
+
+        self.song_title = QLabel()
+        self.song_title.setObjectName("songTitle")
+        self.song_title.setWordWrap(True)
+        layout.addWidget(self.song_title)
+        self.song_artist = QLabel()
+        self.song_artist.setObjectName("songArtist")
+        self.song_artist.setWordWrap(True)
+        layout.addWidget(self.song_artist)
+        self.song_details = QLabel()
+        self.song_details.setObjectName("songDetails")
+        self.song_details.setWordWrap(True)
+        layout.addWidget(self.song_details)
+
+        layout.addSpacing(8)
+        library_label = QLabel("SELECT A SONG")
+        library_label.setObjectName("musicSectionLabel")
+        layout.addWidget(library_label)
+        song_list = QScrollArea()
+        song_list.setObjectName("songList")
+        song_list.setWidgetResizable(True)
+        song_list.setFrameShape(QFrame.Shape.NoFrame)
+        song_container = QWidget()
+        song_layout = QVBoxLayout(song_container)
+        song_layout.setContentsMargins(0, 0, 4, 0)
+        song_layout.setSpacing(8)
+        for index, song in enumerate(self.songs):
+            button = QPushButton(song.get("title", "Untitled"))
+            button.setObjectName("songButton")
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setToolTip(
+                f'{song.get("artist_or_composer", "Unknown artist")} · '
+                f'{song.get("album_or_symphony", "Unknown work")}'
+            )
+            button.clicked.connect(lambda checked=False, song_index=index: self.select_song(song_index))
+            self.song_buttons.append(button)
+            song_layout.addWidget(button)
+        song_layout.addStretch()
+        song_list.setWidget(song_container)
+        layout.addWidget(song_list, 1)
+        self.select_song(self.selected_song_index)
+
+    def select_song(self, index):
+        if index < 0 or index >= len(self.songs):
+            return
+        self.selected_song_index = index
+        song = self.songs[index]
+        for song_index, button in enumerate(self.song_buttons):
+            button.setChecked(song_index == index)
+
+        image_path = self.music_dir / song.get("image_url", "")
+        if not image_path.is_file():
+            image_path = self.music_dir / "menken.jpg"
+        pixmap = QPixmap(str(image_path))
+        if pixmap.isNull():
+            self.song_art.clear()
+        else:
+            self.song_art.setPixmap(
+                pixmap.scaled(
+                    self.song_art.size(),
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        self.song_title.setText(song.get("title", "Untitled"))
+        self.song_artist.setText(song.get("artist_or_composer", "Unknown artist"))
+        self.song_details.setText(
+            f'{song.get("album_or_symphony", "Unknown work")} · '
+            f'{song.get("release_year", "—")}\n'
+            f'{song.get("beats_per_minute", "—")} BPM · '
+            f'{song.get("beats_per_bar", "—")} beats per bar'
+        )
+        if hasattr(self, "audio_player"):
+            self._start_selected_song()
+
+    def _start_selected_song(self):
+        song = self.songs[self.selected_song_index]
+        if hasattr(self, "audio_player"):
+            self.audio_player.stop()
+        self.audio_player = AudioPlayer(
+            audio_file=str(self.music_dir / song["audio_url"]),
+            reference_bars_per_minute=song["beats_per_minute"],
+        )
+        self.audio_player.set_volume(100)
+        self.audio_player.play()
 
     def _build_settings_panel(self):
         panel = QFrame()
@@ -198,7 +318,7 @@ class MaestroWindow(QWidget):
                 "#102521", "#18362F", "#21463D", "#F4FBF7", "#A9C3B9", "#376257", "#256E31"
             )
         return f"""
-            QWidget#mainScreen, QWidget#titleScreen {{
+            QStackedWidget#appController, QWidget#mainScreen, QWidget#titleScreen {{
                 background-color: {background};
                 color: {text};
                 font-family: Segoe UI;
@@ -206,6 +326,48 @@ class MaestroWindow(QWidget):
             QFrame#settingsPanel, QFrame#previewPanel {{
                 background-color: {surface};
                 border: 1px solid {border};
+            }}
+            QLabel#musicPanelTitle {{
+                color: {text};
+                font-size: 13px;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QLabel#songArt {{
+                background-color: {raised};
+                border: 1px solid {border};
+                border-radius: 10px;
+            }}
+            QLabel#songTitle {{
+                color: {text};
+                font-size: 18px;
+                font-weight: 700;
+            }}
+            QLabel#songArtist, QLabel#songDetails {{
+                color: {muted};
+                font-size: 13px;
+            }}
+            QLabel#musicSectionLabel {{
+                color: {muted};
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QScrollArea#songList {{
+                background: transparent;
+            }}
+            QPushButton#songButton {{
+                background-color: {raised};
+                color: {text};
+                border: 1px solid {border};
+                border-radius: 8px;
+                padding: 10px;
+                text-align: left;
+            }}
+            QPushButton#songButton:hover, QPushButton#songButton:checked {{
+                background-color: {accent};
+                border-color: {accent};
+                color: #FFFFFF;
             }}
             QPushButton#menuButton, QPushButton#drawerClose {{
                 background-color: transparent;
@@ -380,13 +542,7 @@ class MaestroWindow(QWidget):
 
         self.analyser=Analyser()
 
-        self.audio_player = AudioPlayer(
-            audio_file="demo.mp3",
-            reference_bars_per_minute=37.5
-        )
-
-        self.audio_player.set_volume(50)
-        self.audio_player.play()
+        self._start_selected_song()
 
 
     def update_frame(self):
@@ -550,6 +706,7 @@ class AppController(QStackedWidget):
     def __init__(self):
 
         super().__init__()
+        self.setObjectName("appController")
 
         self.title_screen = TitleScreen()
 
@@ -583,9 +740,9 @@ class AppController(QStackedWidget):
 
     def set_theme(self, theme):
         self.maestro_screen.set_theme(theme)
-        self.title_screen.setStyleSheet(
-            self.maestro_screen._stylesheet(self.maestro_screen.current_theme)
-        )
+        stylesheet = self.maestro_screen._stylesheet(self.maestro_screen.current_theme)
+        self.setStyleSheet(stylesheet)
+        self.title_screen.setStyleSheet(stylesheet)
 
 if __name__ == "__main__":
 
