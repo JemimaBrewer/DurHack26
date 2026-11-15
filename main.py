@@ -41,6 +41,7 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 from PyQt6.QtMultimedia import QSoundEffect
 
 from audio_player import AudioPlayer
+from visual_effects import VisualEffectsOverlay
 
 from title_screen import TitleScreen
 
@@ -181,10 +182,14 @@ class MaestroWindow(QWidget):
         root_layout.addWidget(center_panel, 1)
         root_layout.addWidget(self.preview_panel)
 
-        self.effects_label = QLabel("", self.camera_label)
-        self.effects_label.setObjectName("effectsBadge")
-        self.effects_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.effects_label.hide()
+        self.effects_overlay = VisualEffectsOverlay(self.camera_label)
+        self.effects_overlay.setObjectName("effectsOverlay")
+        self.effects_overlay.setGeometry(
+            0,
+            max(0, self.camera_label.height() - 120),
+            self.camera_label.width(),
+            min(120, self.camera_label.height()),
+        )
         self.countdown_overlay = QFrame(self.camera_label)
         self.countdown_overlay.setObjectName("countdownOverlay")
         self.countdown_overlay.setFixedHeight(56)
@@ -736,7 +741,7 @@ class MaestroWindow(QWidget):
         self.visual_effects_enabled = enabled
         self._save_settings()
         if not enabled:
-            self.effects_label.hide()
+            self.effects_overlay.set_effect(None)
 
     def _settings_changed(self):
         self._save_settings()
@@ -922,22 +927,15 @@ class MaestroWindow(QWidget):
 
     def update_visual_effect(self, bpm):
         if not self.visual_effects_enabled or bpm <= 0:
-            self.effects_label.hide()
+            self.effects_overlay.set_effect(None)
             return
         target_bpm = self.songs[self.selected_song_index]["beats_per_minute"]
         if bpm >= target_bpm * 1.5:
-            self.effects_label.setText("🔥")
+            self.effects_overlay.set_effect("flames")
         elif bpm <= target_bpm * 0.75:
-            self.effects_label.setText("🐌")
+            self.effects_overlay.set_effect("snail")
         else:
-            self.effects_label.hide()
-            return
-        self.effects_label.adjustSize()
-        self.effects_label.move(
-            self.camera_label.width() - self.effects_label.width() - 16,
-            16,
-        )
-        self.effects_label.show()
+            self.effects_overlay.set_effect(None)
 
     def start_session(self):
         self.cap = cv2.VideoCapture(
@@ -1117,10 +1115,12 @@ class MaestroWindow(QWidget):
                 camera_width,
                 self.countdown_overlay.height(),
             )
-        if hasattr(self, "effects_label"):
-            self.effects_label.move(
-                self.camera_label.width() - self.effects_label.width() - 16,
-                16,
+        if hasattr(self, "effects_overlay"):
+            self.effects_overlay.setGeometry(
+                0,
+                max(0, self.camera_label.height() - 120),
+                self.camera_label.width(),
+                min(120, self.camera_label.height()),
             )
 
     def resizeEvent(self, event):
