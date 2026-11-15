@@ -1,3 +1,6 @@
+import math
+import time
+
 import vlc
 
 
@@ -30,6 +33,8 @@ class AudioPlayer:
         )
 
         self.current_rate = 1.0
+        self.target_rate = 1.0
+        self.last_rate_update = time.monotonic()
         self.current_volume = 150
 
     def play(self):
@@ -39,7 +44,7 @@ class AudioPlayer:
         self.player.stop()
 
     def set_volume(self, volume):
-        self.current_volume = max(1, min(200, int(volume)))
+        self.current_volume = max(1, min(400, int(volume)))
         self.player.audio_set_volume(self.current_volume)
 
     def get_volume(self):
@@ -53,41 +58,26 @@ class AudioPlayer:
         if live_bpm <= 0:
             return
 
-        target_rate = (
+        self.target_rate = (
             live_bpm
             / self.reference_bpm
         )
 
-        target_rate = max(
+        self.target_rate = max(
             0.5,
-            min(2.5, target_rate)
+            min(2.5, self.target_rate)
         )
 
-        max_change = 0.10
-
-        rate_difference = (
-            target_rate
-            - self.current_rate
-        )
-
-        if rate_difference > max_change:
-            rate_difference = max_change
-
-        elif rate_difference < -max_change:
-            rate_difference = -max_change
-
+        now = time.monotonic()
+        elapsed = max(0.0, now - self.last_rate_update)
+        self.last_rate_update = now
+        smoothing = 1.0 - math.exp(-elapsed / 0.18)
         self.current_rate += (
-            rate_difference
-        )
+            self.target_rate - self.current_rate
+        ) * smoothing
 
-        self.player.set_rate(
-            self.current_rate
-        )
-
-        print(
-            f"Target={target_rate:.2f} "
-            f"Current={self.current_rate:.2f}"
-        )
+        if abs(self.target_rate - self.current_rate) > 0.001:
+            self.player.set_rate(self.current_rate)
 
     def get_rate(self):
 

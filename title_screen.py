@@ -13,7 +13,7 @@ from PyQt6.QtCore import Qt
 class TitleScreen(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("BeatBuddy")
+        self.setWindowTitle("BEATBUDDY")
         self.setObjectName("titleScreen")
 
         header = QHBoxLayout()

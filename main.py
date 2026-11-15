@@ -37,7 +37,15 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
-from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath
+from PyQt6.QtGui import (
+    QPixmap,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QIcon,
+    QFont,
+    QColor,
+)
 from PyQt6.QtMultimedia import QSoundEffect
 
 from audio_player import AudioPlayer
@@ -75,7 +83,7 @@ class MaestroWindow(QWidget):
         self.metronome_click = self._create_metronome_click()
         self._settings_ready = False
 
-        self.setWindowTitle("BeatBuddy")
+        self.setWindowTitle("BEATBUDDY")
         self.setObjectName("mainScreen")
 
         main_layout = QVBoxLayout()
@@ -1025,30 +1033,15 @@ class MaestroWindow(QWidget):
                 self.hand_tracker.current_fingertip
             )
 
-            new_downbeat = (
-                self.analyser.update(
-                    x,
-                    y
-                )
-            )
-
-            if new_downbeat:
-
-                bpm = (
-                    self.analyser
-                    .get_bars_per_minute()
-                )
-
-                if bpm > 0:
-
-                    self.audio_player.update_tempo(
-                        bpm
-                    )
+            self.analyser.update(x, y)
 
             bpm = (
                 self.analyser
                 .get_bars_per_minute()
             )
+
+            if bpm > 0:
+                self.audio_player.update_tempo(bpm)
 
             self.text_box.setText(
                 f"Bars per Minute: {bpm:.1f}\n"
@@ -1188,6 +1181,7 @@ class AppController(QStackedWidget):
     def __init__(self):
 
         super().__init__()
+        self.setWindowTitle("BEATBUDDY")
         self.setObjectName("appController")
         self.setMinimumWidth(960)
 
@@ -1230,6 +1224,18 @@ class AppController(QStackedWidget):
 if __name__ == "__main__":
 
     app = QApplication(sys.argv)
+    icon_pixmap = QPixmap(64, 64)
+    icon_pixmap.fill(Qt.GlobalColor.transparent)
+    icon_painter = QPainter(icon_pixmap)
+    icon_painter.setPen(QColor("#38d9a9"))
+    icon_painter.setFont(QFont("DejaVu Sans", 48))
+    icon_painter.drawText(
+        icon_pixmap.rect(),
+        Qt.AlignmentFlag.AlignCenter,
+        "♪",
+    )
+    icon_painter.end()
+    app.setWindowIcon(QIcon(icon_pixmap))
 
     window = AppController()
 
